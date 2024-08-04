@@ -20,15 +20,17 @@ func InitDb() {
 
 	fmt.Println("Database connection successful")
 
-	createTables(db)
+	defer db.Close()
+
+	executeScripts(db)
 
 	fmt.Println("InitDb finished..")
 }
 
-func createTables(db *sql.DB) {
-	fmt.Println("creating resources table")
+var scriptsMaps = make(map[string]string)
 
-	sql := `CREATE TABLE IF NOT EXISTS resources (
+func loadScripts() {
+	scriptsMaps["create_table_resources"] = `CREATE TABLE IF NOT EXISTS resources (
 		id integer PRIMARY KEY,
 		resource_id varchar(256) NOT NULL UNIQUE,
 		resource_path varchar(4096) NOT NULL,
@@ -39,13 +41,37 @@ func createTables(db *sql.DB) {
 		created_date INTEGER NOT NULL
 	);`
 
-	result, err := db.Exec(sql)
-	onDbError(err)
+	scriptsMaps["create_table_app_configurations"] = `CREATE TABLE IF NOT EXISTS app_configurations (
+		config_name varchar(256) NOT NULL UNIQUE,
+		data_type varchar(64) NOT NULL,
+		config_value varchar(4096) NOT NULL,
+		created_date INTEGER NOT NULL,
+		updated_date INTEGER NOT NULL
+	);`
 
-	rowsAffected, err := result.RowsAffected()
-	onDbError(err)
+	scriptsMaps["insert_appconfig_default_ingestfolder"] = `
+		INSERT OR IGNORE INTO app_configurations (config_name, data_type, config_value, created_date, updated_date)
+		VALUES ('ROOT_INGESTS_FOLDER', 'STRING', './resources/raw/', datetime(), datetime())
+	`
+	scriptsMaps["insert_appconfig_default_pkgs_folder"] = `
+		INSERT OR IGNORE INTO app_configurations (config_name, data_type, config_value, created_date, updated_date)
+		VALUES ('ROOT_PKGS_FOLDER', 'STRING', './resources/hls/', datetime(), datetime())
+	`
+}
 
-	fmt.Printf("Resource table created: %v\n", rowsAffected)
+func executeScripts(db *sql.DB) {
+
+	loadScripts()
+	fmt.Println("Executing scripts")
+
+	for key, script := range scriptsMaps {
+
+		fmt.Printf("Executing script: %v\n", key)
+		_, err := db.Exec(script)
+		onDbError(err)
+
+		fmt.Printf("Script %v successfully executed\n", key)
+	}
 
 }
 

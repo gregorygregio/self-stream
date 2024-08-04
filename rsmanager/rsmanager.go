@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"self-stream/appconfigs"
 	"self-stream/dtaccess"
+	"strings"
 	"time"
 )
 
@@ -31,6 +33,14 @@ var resources = []ResourceInfo{
 func (r *ResourceInfo) IsResourceLoaded() bool {
 	_, err := os.Stat(r.ResourcePath + "/" + r.ManifestFileName)
 	return err == nil
+}
+
+func (r *ResourceInfo) GetIngestFileExtension() string {
+	fnameSlice := strings.Split(r.RawFileName, ".")
+	if len(fnameSlice) > 0 {
+		return "." + fnameSlice[len(fnameSlice)-1]
+	}
+	return ""
 }
 
 func (r *ResourceInfo) LoadResource() error {
@@ -82,9 +92,7 @@ func (r *ResourceInfo) LoadResource() error {
 
 func (r *ResourceInfo) UpdateResource() error {
 
-	fmt.Println("Executando UpdateResource")
 	loadDate := r.LoadedDate.Local().Format(time.RFC3339)
-	fmt.Printf("UpdateResource - loadData: %v\n", loadDate)
 	createDate := r.CreatedDate.Local().Format(time.RFC3339)
 
 	return dtaccess.UpdateResource(&dtaccess.ResourceData{
@@ -99,17 +107,58 @@ func (r *ResourceInfo) UpdateResource() error {
 	})
 }
 
-func CreateResource(r *ResourceInfo) error {
+func CreateResource(ingestPath string) (*ResourceInfo, error) {
 
 	fmt.Println("Executando CreateResource")
 
+	fileInfo, err := os.Stat(ingestPath)
+	if err != nil {
+		return nil, err
+	}
+
+	fullpath, err := filepath.Abs(ingestPath)
+	if err != nil {
+		return nil, err
+	}
+
+	r := ResourceInfo{
+		//ResourcePath:     "resources/hls/balcony_wdad15wd1a31",
+		//ManifestFileName: "balcony_wdad15wd1a31.m3u8",
+		RawFilePath: fullpath,
+		RawFileName: fileInfo.Name(),
+	}
+
+	if !isAcceptedVideoExtension(r.GetIngestFileExtension()) {
+		return nil, errors.New("unsupported file extension")
+	}
+
+	fmt.Printf("ingest fileName: %v\n", r.RawFileName)
+	fmt.Printf("ingest filePath: %v\n", r.RawFilePath)
+	fmt.Printf("ingest fileExt: %v\n", r.GetIngestFileExtension())
+
 	h := sha256.New()
 	h.Write([]byte(r.RawFileName))
-
 	hash := h.Sum(nil)
-	fmt.Printf("Criado resource_id %x\n", hash)
+	fmt.Printf("Criando resource_id %x\n", hash)
 
 	r.ResourceId = hex.EncodeToString(hash)
+
+	r.ManifestFileName = r.ResourceId + "_manifest.m3u8"
+
+	rpf, err := appconfigs.GetConfig(appconfigs.RootPackagesFolder)
+	if err != nil {
+		//Uses default path
+		rpf = "./resources/hls/"
+	}
+
+	rpfInfo, err := os.Stat(rpf)
+	if err != nil || !rpfInfo.IsDir() {
+		return nil, errors.New("unable to find root packages dir")
+	}
+	r.ResourcePath = filepath.Join(rpf, r.ResourceId, r.ManifestFileName)
+
+	fmt.Printf("ManifestFileName: %v\n", r.ManifestFileName)
+	fmt.Printf("ResourcePath: %v\n", r.ResourcePath)
 
 	resourceData := dtaccess.ResourceData{
 		Resource_id:        r.ResourceId,
@@ -119,15 +168,15 @@ func CreateResource(r *ResourceInfo) error {
 		Raw_file_name:      r.RawFileName,
 	}
 
-	err := dtaccess.CreateResource(&resourceData)
+	err = dtaccess.CreateResource(&resourceData)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Println("Resource created succesfully")
 	r.id = resourceData.Id
 
-	return nil
+	return &r, nil
 }
 
 func GetResourceInfoById(id string) (*ResourceInfo, error) {
@@ -163,4 +212,22 @@ func GetResourceInfoById(id string) (*ResourceInfo, error) {
 	}
 
 	return &rInfo, nil
+}
+
+var acceptedVideoExtensions = []string{
+	"mp4",
+	"wav",
+	"mkv",
+	"ico",
+}
+
+func isAcceptedVideoExtension(e string) bool {
+	e = strings.Replace(e, ".", "", 1)
+	for _, ext := range acceptedVideoExtensions {
+		if e == ext {
+			return true
+		}
+	}
+
+	return false
 }

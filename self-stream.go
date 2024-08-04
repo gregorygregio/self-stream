@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 
 	//"net/http"
+	"self-stream/appconfigs"
 	"self-stream/dtaccess"
 	"self-stream/rsmanager"
 	//vidstreaming "self-stream/videostreaming"
@@ -18,11 +18,12 @@ func main() {
 
 	dtaccess.InitDb()
 
+	appconfigs.LoadConfigs()
 	/*
 		TODO
 		* StartResourceWorker()
-		* Alterar o CreateResource, que deveria receber apenas o
-			path do arquivo original e gerar o path do resource e manifest name
+		  - Buscar resources com loaded_date null para carregar
+
 
 	*/
 
@@ -56,28 +57,21 @@ func main() {
 func test() {
 	fmt.Println("Iniciando teste")
 
-	resource := rsmanager.ResourceInfo{
-		ResourcePath:     "resources/hls/balcony_wdad15wd1a31",
-		ManifestFileName: "balcony_wdad15wd1a31.m3u8",
-		RawFilePath:      "resources/raw",
-		RawFileName:      "balcony.mp4",
-	}
-
-	err := rsmanager.CreateResource(&resource)
+	resource, err := rsmanager.CreateResource("resources/raw/balcony.mp4")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Printf("Created resource %v\n", resource.ResourceId)
 
-	if r, err := rsmanager.GetResourceInfoById(resource.ResourceId); err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Printf("Found resource %v\n", r.ManifestFileName)
-		r.LoadedDate = time.Now()
-		r.UpdateResource()
-		fmt.Println("Fim do teste")
-	}
+	// if r, err := rsmanager.GetResourceInfoById(resource.ResourceId); err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	fmt.Printf("Found resource %v\n", r.ManifestFileName)
+	// 	r.LoadedDate = time.Now()
+	// 	r.UpdateResource()
+	// 	fmt.Println("Fim do teste")
+	// }
 }
 
 const home = `<!DOCTYPE html>
