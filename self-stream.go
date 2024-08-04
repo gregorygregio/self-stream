@@ -23,8 +23,7 @@ func main() {
 		TODO
 		* StartResourceWorker()
 		  - Buscar resources com loaded_date null para carregar
-
-
+		* Implement appropriate Logging
 	*/
 
 	/*

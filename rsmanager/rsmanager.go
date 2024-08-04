@@ -10,40 +10,10 @@ import (
 	"path/filepath"
 	"self-stream/appconfigs"
 	"self-stream/dtaccess"
-	"strings"
 	"time"
 )
 
-type ResourceInfo struct {
-	id                                                                   int32
-	ResourceId, ResourcePath, ManifestFileName, RawFilePath, RawFileName string
-	LoadedDate, CreatedDate                                              time.Time
-}
-
-var resources = []ResourceInfo{
-	{
-		ResourceId:       "wdad15wd1a31",
-		ResourcePath:     "resources/hls/balcony_wdad15wd1a31",
-		ManifestFileName: "balcony_wdad15wd1a31.m3u8",
-		RawFilePath:      "resources/raw",
-		RawFileName:      "balcony.mp4",
-	},
-}
-
-func (r *ResourceInfo) IsResourceLoaded() bool {
-	_, err := os.Stat(r.ResourcePath + "/" + r.ManifestFileName)
-	return err == nil
-}
-
-func (r *ResourceInfo) GetIngestFileExtension() string {
-	fnameSlice := strings.Split(r.RawFileName, ".")
-	if len(fnameSlice) > 0 {
-		return "." + fnameSlice[len(fnameSlice)-1]
-	}
-	return ""
-}
-
-func (r *ResourceInfo) LoadResource() error {
+func LoadResource(r *ResourceInfo) error {
 	if _, err := os.Stat(r.ResourcePath); errors.Is(err, os.ErrNotExist) {
 		err := os.Mkdir(r.ResourcePath, os.ModePerm)
 		if err != nil {
@@ -85,12 +55,12 @@ func (r *ResourceInfo) LoadResource() error {
 	fmt.Println(string(stdout))
 	fmt.Printf("Conversão finalizada às %v", r.LoadedDate)
 
-	r.UpdateResource()
+	UpdateResource(r)
 
 	return nil
 }
 
-func (r *ResourceInfo) UpdateResource() error {
+func UpdateResource(r *ResourceInfo) error {
 
 	loadDate := r.LoadedDate.Local().Format(time.RFC3339)
 	createDate := r.CreatedDate.Local().Format(time.RFC3339)
@@ -122,8 +92,6 @@ func CreateResource(ingestPath string) (*ResourceInfo, error) {
 	}
 
 	r := ResourceInfo{
-		//ResourcePath:     "resources/hls/balcony_wdad15wd1a31",
-		//ManifestFileName: "balcony_wdad15wd1a31.m3u8",
 		RawFilePath: fullpath,
 		RawFileName: fileInfo.Name(),
 	}
@@ -212,22 +180,4 @@ func GetResourceInfoById(id string) (*ResourceInfo, error) {
 	}
 
 	return &rInfo, nil
-}
-
-var acceptedVideoExtensions = []string{
-	"mp4",
-	"wav",
-	"mkv",
-	"ico",
-}
-
-func isAcceptedVideoExtension(e string) bool {
-	e = strings.Replace(e, ".", "", 1)
-	for _, ext := range acceptedVideoExtensions {
-		if e == ext {
-			return true
-		}
-	}
-
-	return false
 }
