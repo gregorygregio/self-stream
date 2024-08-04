@@ -1,15 +1,21 @@
 package rsmanager
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"self-stream/dtaccess"
+	"time"
 )
 
 type ResourceInfo struct {
+	id                                                                   int32
 	ResourceId, ResourcePath, ManifestFileName, RawFilePath, RawFileName string
+	LoadedDate, CreatedDate                                              time.Time
 }
 
 var resources = []ResourceInfo{
@@ -63,19 +69,98 @@ func (r *ResourceInfo) LoadResource() error {
 		return err
 	}
 
+	r.LoadedDate = time.Now()
+
 	// Print the output
 	fmt.Println(string(stdout))
-	fmt.Println("Conversão finalizada")
+	fmt.Printf("Conversão finalizada às %v", r.LoadedDate)
+
+	r.UpdateResource()
 
 	return nil
 }
 
-func GetResourceInfoById(id string) (ResourceInfo, error) {
-	for _, r := range resources {
-		if r.ResourceId == id {
-			return r, nil
-		}
+func (r *ResourceInfo) UpdateResource() error {
+
+	fmt.Println("Executando UpdateResource")
+	loadDate := r.LoadedDate.Local().Format(time.RFC3339)
+	fmt.Printf("UpdateResource - loadData: %v\n", loadDate)
+	createDate := r.CreatedDate.Local().Format(time.RFC3339)
+
+	return dtaccess.UpdateResource(&dtaccess.ResourceData{
+		Id:                 r.id,
+		Resource_id:        r.ResourceId,
+		Resource_path:      r.ResourcePath,
+		Manifest_file_name: r.ManifestFileName,
+		Raw_file_path:      r.RawFilePath,
+		Raw_file_name:      r.RawFileName,
+		Loaded_date:        loadDate,
+		Created_date:       createDate,
+	})
+}
+
+func CreateResource(r *ResourceInfo) error {
+
+	fmt.Println("Executando CreateResource")
+
+	h := sha256.New()
+	h.Write([]byte(r.RawFileName))
+
+	hash := h.Sum(nil)
+	fmt.Printf("Criado resource_id %x\n", hash)
+
+	r.ResourceId = hex.EncodeToString(hash)
+
+	resourceData := dtaccess.ResourceData{
+		Resource_id:        r.ResourceId,
+		Resource_path:      r.ResourcePath,
+		Manifest_file_name: r.ManifestFileName,
+		Raw_file_path:      r.RawFilePath,
+		Raw_file_name:      r.RawFileName,
 	}
 
-	return ResourceInfo{}, errors.New("resource not found")
+	err := dtaccess.CreateResource(&resourceData)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Resource created succesfully")
+	r.id = resourceData.Id
+
+	return nil
+}
+
+func GetResourceInfoById(id string) (*ResourceInfo, error) {
+	rdata, err := dtaccess.GetResourceById(id)
+	if err != nil {
+		if errors.Is(err, &dtaccess.DbNotFound{}) {
+			//maybe log it
+			return nil, errors.New("resource not found")
+		}
+
+		return nil, err
+	}
+
+	loadDate, err := time.Parse(time.RFC3339, rdata.Loaded_date)
+	if err != nil {
+		//logError
+	}
+
+	createDate, err := time.Parse(time.RFC3339, rdata.Created_date)
+	if err != nil {
+		//logError
+	}
+
+	rInfo := ResourceInfo{
+		id:               rdata.Id,
+		ResourceId:       rdata.Resource_id,
+		ResourcePath:     rdata.Resource_path,
+		ManifestFileName: rdata.Manifest_file_name,
+		RawFilePath:      rdata.Raw_file_path,
+		RawFileName:      rdata.Raw_file_name,
+		LoadedDate:       loadDate,
+		CreatedDate:      createDate,
+	}
+
+	return &rInfo, nil
 }

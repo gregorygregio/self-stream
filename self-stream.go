@@ -3,59 +3,80 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
-	"self-stream/rsmanager"
-	vidstreaming "self-stream/videostreaming"
-	"strings"
 	"time"
+
+	//"net/http"
+	"self-stream/dtaccess"
+	"self-stream/rsmanager"
+	//vidstreaming "self-stream/videostreaming"
+	//"strings"
+	//"time"
 	//"github.com/gin-gonic/gin"
 )
 
 func main() {
-	port := 8080
 
-	hlsServce := vidstreaming.HlsServer{
-		Route:       "/",
-		ContentPath: "./resources/hls",
-	}
+	dtaccess.InitDb()
 
-	hlsServce.StartHlsServer()
+	/*
+		TODO
+		* StartResourceWorker()
+		* Alterar o CreateResource, que deveria receber apenas o
+			path do arquivo original e gerar o path do resource e manifest name
 
-	http.Handle("/home", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		r := strings.NewReader(home)
-		http.ServeContent(rw, req, "index.html", time.Time{}, r)
-	}))
+	*/
 
-	//router := gin.Default()
+	/*
+		port := 8080
 
-	//router.GET("/resources/:resourceId", getResourceById)
+		hlsServce := vidstreaming.HlsServer{
+			Route:       "/",
+			ContentPath: "./resources/hls",
+		}
 
-	fmt.Printf("Starting HLS server on %v\n", port)
-	log.Printf("Serving %s on HTTP port: %v\n", hlsServce.ContentPath, port)
+		hlsServce.StartHlsServer()
 
-	go test()
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+		http.Handle("/home", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			r := strings.NewReader(home)
+			http.ServeContent(rw, req, "index.html", time.Time{}, r)
+		}))
+
+		//router := gin.Default()
+
+		//router.GET("/resources/:resourceId", getResourceById)
+
+		fmt.Printf("Starting HLS server on %v\n", port)
+		log.Printf("Serving %s on HTTP port: %v\n", hlsServce.ContentPath, port)
+
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+	*/
+	test()
 }
 
 func test() {
 	fmt.Println("Iniciando teste")
 
-	id2 := "wdad15wd1a31"
+	resource := rsmanager.ResourceInfo{
+		ResourcePath:     "resources/hls/balcony_wdad15wd1a31",
+		ManifestFileName: "balcony_wdad15wd1a31.m3u8",
+		RawFilePath:      "resources/raw",
+		RawFileName:      "balcony.mp4",
+	}
 
-	if r, err := rsmanager.GetResourceInfoById(id2); err != nil {
+	err := rsmanager.CreateResource(&resource)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Created resource %v\n", resource.ResourceId)
+
+	if r, err := rsmanager.GetResourceInfoById(resource.ResourceId); err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("Found resouce %v\n", r.ManifestFileName)
-		isLoaded := r.IsResourceLoaded()
-		if isLoaded {
-			fmt.Println("Resource is loaded")
-		} else {
-			fmt.Println("Resource is NOT loaded yet")
-			err := r.LoadResource()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
+		fmt.Printf("Found resource %v\n", r.ManifestFileName)
+		r.LoadedDate = time.Now()
+		r.UpdateResource()
+		fmt.Println("Fim do teste")
 	}
 }
 

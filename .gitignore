@@ -1,5 +1,7 @@
 resources/hls/*
 resources/raw/*
+resources/database/*
 
 !resources/hls/.gitkeep
 !resources/raw/.gitkeep
+!resources/database/.gitkeep
