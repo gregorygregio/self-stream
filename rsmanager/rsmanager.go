@@ -160,12 +160,12 @@ func GetResourceInfoById(id string) (*ResourceInfo, error) {
 
 	loadDate, err := time.Parse(time.RFC3339, rdata.Loaded_date)
 	if err != nil {
-		//logError
+		loadDate = time.Time{}
 	}
 
 	createDate, err := time.Parse(time.RFC3339, rdata.Created_date)
 	if err != nil {
-		//logError
+		createDate = time.Time{}
 	}
 
 	rInfo := ResourceInfo{
