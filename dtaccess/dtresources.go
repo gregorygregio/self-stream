@@ -161,3 +161,60 @@ func CreateResource(rdata *ResourceData) error {
 
 	return nil
 }
+
+func GetResourcesToLoad() ([]ResourceData, error) {
+	db, err := getDbConnection()
+	if err != nil {
+		log.Default().Println(err.Error())
+		return nil, &DbConnectionError{}
+	}
+
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT  
+			id,
+			resource_id,
+			resource_path,
+			manifest_file_name,
+			raw_file_path,
+			raw_file_name,
+			COALESCE(loaded_date, ''),
+			COALESCE(created_date, '')
+		FROM resources WHERE loaded_date is null`)
+	if err != nil {
+		log.Default().Println(err.Error())
+		return nil, &DbError{}
+	}
+	if err != nil {
+		log.Default().Println(err.Error())
+		return nil, &DbError{}
+	}
+
+	defer rows.Close()
+
+	resourcesSlice := make([]ResourceData, 0)
+	for rows.Next() {
+		data := ResourceData{}
+		err := rows.Scan(
+			&data.Id,
+			&data.Resource_id,
+			&data.Resource_path,
+			&data.Manifest_file_name,
+			&data.Raw_file_path,
+			&data.Raw_file_name,
+			&data.Loaded_date,
+			&data.Created_date,
+		)
+
+		if err != nil {
+			log.Default().Println(err.Error())
+			return nil, &DbError{}
+		}
+
+		resourcesSlice = append(resourcesSlice, data)
+
+	}
+
+	return resourcesSlice, nil
+}

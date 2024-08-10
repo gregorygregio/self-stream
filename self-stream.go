@@ -1,14 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"log"
 
 	//"net/http"
+	"fmt"
+	"log"
+	"net/http"
 	"self-stream/appconfigs"
 	"self-stream/dtaccess"
 	"self-stream/rsmanager"
-	//vidstreaming "self-stream/videostreaming"
+	vidstreaming "self-stream/videostreaming"
+	"strings"
+	"time"
 	//"strings"
 	//"time"
 	//"github.com/gin-gonic/gin"
@@ -19,58 +22,32 @@ func main() {
 	dtaccess.InitDb()
 
 	appconfigs.LoadConfigs()
-	/*
-		TODO
-		* StartResourceWorker()
-		  - Buscar resources com loaded_date null para carregar
-		* Implement appropriate Logging
-	*/
 
-	/*
-		port := 8080
+	go rsmanager.StartResourceWorker()
 
-		hlsServce := vidstreaming.HlsServer{
-			Route:       "/",
-			ContentPath: "./resources/hls",
-		}
+	port := 8080
 
-		hlsServce.StartHlsServer()
-
-		http.Handle("/home", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			r := strings.NewReader(home)
-			http.ServeContent(rw, req, "index.html", time.Time{}, r)
-		}))
-
-		//router := gin.Default()
-
-		//router.GET("/resources/:resourceId", getResourceById)
-
-		fmt.Printf("Starting HLS server on %v\n", port)
-		log.Printf("Serving %s on HTTP port: %v\n", hlsServce.ContentPath, port)
-
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
-	*/
-	test()
-}
-
-func test() {
-	fmt.Println("Iniciando teste")
-
-	resource, err := rsmanager.CreateResource("resources/raw/balcony.mp4")
-	if err != nil {
-		log.Fatal(err)
+	hlsServce := vidstreaming.HlsServer{
+		Route:       "/",
+		ContentPath: "./resources/hls",
 	}
 
-	fmt.Printf("Created resource %v\n", resource.ResourceId)
+	hlsServce.StartHlsServer()
 
-	// if r, err := rsmanager.GetResourceInfoById(resource.ResourceId); err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	fmt.Printf("Found resource %v\n", r.ManifestFileName)
-	// 	r.LoadedDate = time.Now()
-	// 	r.UpdateResource()
-	// 	fmt.Println("Fim do teste")
-	// }
+	http.Handle("/home", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		r := strings.NewReader(home)
+		http.ServeContent(rw, req, "index.html", time.Time{}, r)
+	}))
+
+	//router := gin.Default()
+
+	//router.GET("/resources/:resourceId", getResourceById)
+
+	fmt.Printf("Starting HLS server on %v\n", port)
+	log.Printf("Serving %s on HTTP port: %v\n", hlsServce.ContentPath, port)
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+
 }
 
 const home = `<!DOCTYPE html>

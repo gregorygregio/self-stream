@@ -14,8 +14,9 @@ import (
 )
 
 func LoadResource(r *ResourceInfo) error {
-	if _, err := os.Stat(r.ResourcePath); errors.Is(err, os.ErrNotExist) {
-		err := os.Mkdir(r.ResourcePath, os.ModePerm)
+	dirPath := filepath.Dir(r.ResourcePath)
+	if _, err := os.Stat(dirPath); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(dirPath, os.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -23,23 +24,23 @@ func LoadResource(r *ResourceInfo) error {
 		return err
 	}
 
-	fmt.Println("Iniciando conversão de vídeo raw para HLS")
-
-	wdpath, err := os.Getwd()
-	if err != nil {
+	if _, err := os.Stat(r.RawFilePath); err != nil {
+		//Deveria fazer algo a respeito desse file path que não existe
+		//Ou removê-lo completamente ou colocar num status de erro e notificar o content manager
+		fmt.Printf("Ingest file was not found on path %v\n", r.RawFilePath)
 		return err
 	}
-	rawSourcePath := filepath.Join(wdpath, r.RawFilePath+"/"+r.RawFileName)
-	destPath := filepath.Join(wdpath, r.ResourcePath+"/"+r.ManifestFileName)
 
-	fmt.Printf("Convertendo %v para %v", rawSourcePath, destPath)
+	fmt.Println("Converting ingest media to HLS")
+
+	fmt.Printf("Converting %v to %v", r.RawFilePath, r.ResourcePath)
 	//ffmpeg -i sample.mkv -c:a copy -f hls -hls_playlist_type vod output.m3u8
 	cmd := exec.Command("ffmpeg",
-		"-i", rawSourcePath,
+		"-i", r.RawFilePath,
 		"-c:a", "copy",
 		"-f", "hls",
 		"-hls_playlist_type", "vod",
-		destPath,
+		r.ResourcePath,
 	)
 
 	stdout, err := cmd.Output()
@@ -180,4 +181,37 @@ func GetResourceInfoById(id string) (*ResourceInfo, error) {
 	}
 
 	return &rInfo, nil
+}
+
+func GetResourcesToLoad() ([]ResourceInfo, error) {
+	rdataSlices, err := dtaccess.GetResourcesToLoad()
+	if err != nil {
+		return nil, err
+	}
+
+	resourcesSlice := make([]ResourceInfo, len(rdataSlices))
+	for i, r := range rdataSlices {
+		loadDate, err := time.Parse(time.RFC3339, r.Loaded_date)
+		if err != nil {
+			loadDate = time.Time{}
+		}
+
+		createDate, err := time.Parse(time.RFC3339, r.Created_date)
+		if err != nil {
+			createDate = time.Time{}
+		}
+
+		resourcesSlice[i] = ResourceInfo{
+			id:               r.Id,
+			ResourceId:       r.Resource_id,
+			ResourcePath:     r.Resource_path,
+			ManifestFileName: r.Manifest_file_name,
+			RawFilePath:      r.Raw_file_path,
+			RawFileName:      r.Raw_file_name,
+			LoadedDate:       loadDate,
+			CreatedDate:      createDate,
+		}
+	}
+
+	return resourcesSlice, nil
 }
