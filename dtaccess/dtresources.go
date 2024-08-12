@@ -10,6 +10,7 @@ type ResourceData struct {
 	Resource_id, Resource_path, Manifest_file_name, Raw_file_path, Raw_file_name string
 	Loaded_date                                                                  string
 	Created_date                                                                 string
+	Resource_status                                                              int8
 }
 
 func GetResourceById(resource_id string) (*ResourceData, error) {
@@ -30,7 +31,8 @@ func GetResourceById(resource_id string) (*ResourceData, error) {
 			raw_file_path,
 			raw_file_name,
 			COALESCE(loaded_date, ''),
-			COALESCE(created_date, '')
+			COALESCE(created_date, ''),
+			resource_status
 		FROM resources WHERE resource_id=?`)
 	if err != nil {
 		log.Default().Println(err.Error())
@@ -56,6 +58,7 @@ func GetResourceById(resource_id string) (*ResourceData, error) {
 			&data.Raw_file_name,
 			&data.Loaded_date,
 			&data.Created_date,
+			&data.Resource_status,
 		)
 
 		if err != nil {
@@ -85,7 +88,8 @@ func UpdateResource(rdata *ResourceData) error {
 			manifest_file_name=?,
 			raw_file_path=?,
 			raw_file_name=?,
-			loaded_date=?
+			loaded_date=?,
+			resource_status=?
 		WHERE resource_id=?
 	`)
 	if err != nil {
@@ -100,6 +104,7 @@ func UpdateResource(rdata *ResourceData) error {
 		rdata.Raw_file_path,
 		rdata.Raw_file_name,
 		rdata.Loaded_date,
+		rdata.Resource_status,
 		rdata.Resource_id)
 
 	if err != nil {
@@ -130,8 +135,9 @@ func CreateResource(rdata *ResourceData) error {
 			manifest_file_name,
 			raw_file_path,
 			raw_file_name,
-			created_date)
-		values (?,?,?,?,?,?)
+			created_date,
+			resource_status)
+		values (?,?,?,?,?,?,?)
 	`)
 	if err != nil {
 		log.Default().Println(err.Error())
@@ -146,6 +152,7 @@ func CreateResource(rdata *ResourceData) error {
 		rdata.Raw_file_path,
 		rdata.Raw_file_name,
 		time.Now().Format(time.RFC3339),
+		rdata.Resource_status,
 	)
 
 	if err != nil {
@@ -180,12 +187,11 @@ func GetResourcesToLoad() ([]ResourceData, error) {
 			raw_file_path,
 			raw_file_name,
 			COALESCE(loaded_date, ''),
-			COALESCE(created_date, '')
-		FROM resources WHERE loaded_date is null`)
-	if err != nil {
-		log.Default().Println(err.Error())
-		return nil, &DbError{}
-	}
+			COALESCE(created_date, ''),
+			resource_status
+		FROM resources 
+		WHERE loaded_date is null 
+		AND resource_status=2`)
 	if err != nil {
 		log.Default().Println(err.Error())
 		return nil, &DbError{}
@@ -205,6 +211,7 @@ func GetResourcesToLoad() ([]ResourceData, error) {
 			&data.Raw_file_name,
 			&data.Loaded_date,
 			&data.Created_date,
+			&data.Resource_status,
 		)
 
 		if err != nil {

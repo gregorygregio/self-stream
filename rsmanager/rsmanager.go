@@ -1,8 +1,6 @@
 package rsmanager
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -11,9 +9,15 @@ import (
 	"self-stream/appconfigs"
 	"self-stream/dtaccess"
 	"time"
+
+	"github.com/oklog/ulid/v2"
 )
 
 func LoadResource(r *ResourceInfo) error {
+	if r.Status != RState_ReadyToProcess {
+		return errors.New("resource is not ready to be processed")
+	}
+
 	dirPath := filepath.Dir(r.ResourcePath)
 	if _, err := os.Stat(dirPath); errors.Is(err, os.ErrNotExist) {
 		err := os.Mkdir(dirPath, os.ModePerm)
@@ -31,8 +35,15 @@ func LoadResource(r *ResourceInfo) error {
 		return err
 	}
 
-	fmt.Println("Converting ingest media to HLS")
+	fmt.Println("Updating resource status to processing")
+	r.Status = RState_Processing
+	err := UpdateResource(r)
+	if err != nil {
+		fmt.Printf("an error occured while trying to update resource %v\n", r.id)
+		return err
+	}
 
+	fmt.Println("Converting ingest media to HLS")
 	fmt.Printf("Converting %v to %v", r.RawFilePath, r.ResourcePath)
 	//ffmpeg -i sample.mkv -c:a copy -f hls -hls_playlist_type vod output.m3u8
 	cmd := exec.Command("ffmpeg",
@@ -51,6 +62,7 @@ func LoadResource(r *ResourceInfo) error {
 	}
 
 	r.LoadedDate = time.Now()
+	r.Status = RState_Loaded
 
 	// Print the output
 	fmt.Println(string(stdout))
@@ -75,6 +87,7 @@ func UpdateResource(r *ResourceInfo) error {
 		Raw_file_name:      r.RawFileName,
 		Loaded_date:        loadDate,
 		Created_date:       createDate,
+		Resource_status:    r.Status,
 	})
 }
 
@@ -95,6 +108,7 @@ func CreateResource(ingestPath string) (*ResourceInfo, error) {
 	r := ResourceInfo{
 		RawFilePath: fullpath,
 		RawFileName: fileInfo.Name(),
+		Status:      RState_New,
 	}
 
 	if !isAcceptedVideoExtension(r.GetIngestFileExtension()) {
@@ -105,12 +119,7 @@ func CreateResource(ingestPath string) (*ResourceInfo, error) {
 	fmt.Printf("ingest filePath: %v\n", r.RawFilePath)
 	fmt.Printf("ingest fileExt: %v\n", r.GetIngestFileExtension())
 
-	h := sha256.New()
-	h.Write([]byte(r.RawFileName))
-	hash := h.Sum(nil)
-	fmt.Printf("Criando resource_id %x\n", hash)
-
-	r.ResourceId = hex.EncodeToString(hash)
+	r.ResourceId = ulid.Make().String()
 
 	r.ManifestFileName = r.ResourceId + "_manifest.m3u8"
 
@@ -135,6 +144,7 @@ func CreateResource(ingestPath string) (*ResourceInfo, error) {
 		Manifest_file_name: r.ManifestFileName,
 		Raw_file_path:      r.RawFilePath,
 		Raw_file_name:      r.RawFileName,
+		Resource_status:    r.Status,
 	}
 
 	err = dtaccess.CreateResource(&resourceData)
@@ -178,6 +188,7 @@ func GetResourceInfoById(id string) (*ResourceInfo, error) {
 		RawFileName:      rdata.Raw_file_name,
 		LoadedDate:       loadDate,
 		CreatedDate:      createDate,
+		Status:           rdata.Resource_status,
 	}
 
 	return &rInfo, nil
@@ -210,6 +221,7 @@ func GetResourcesToLoad() ([]ResourceInfo, error) {
 			RawFileName:      r.Raw_file_name,
 			LoadedDate:       loadDate,
 			CreatedDate:      createDate,
+			Status:           r.Resource_status,
 		}
 	}
 
