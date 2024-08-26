@@ -158,17 +158,7 @@ func CreateResource(ingestPath string) (*ResourceInfo, error) {
 	return &r, nil
 }
 
-func GetResourceInfoById(id string) (*ResourceInfo, error) {
-	rdata, err := dtaccess.GetResourceById(id)
-	if err != nil {
-		if errors.Is(err, &dtaccess.DbNotFound{}) {
-			//maybe log it
-			return nil, errors.New("resource not found")
-		}
-
-		return nil, err
-	}
-
+func resourceDataToResourceInfo(rdata *dtaccess.ResourceData) (*ResourceInfo, error) {
 	loadDate, err := time.Parse(time.RFC3339, rdata.Loaded_date)
 	if err != nil {
 		loadDate = time.Time{}
@@ -192,6 +182,19 @@ func GetResourceInfoById(id string) (*ResourceInfo, error) {
 	}
 
 	return &rInfo, nil
+}
+
+func GetResourceInfoById(id string) (*ResourceInfo, error) {
+	rdata, err := dtaccess.GetResourceById(id)
+	if err != nil {
+		if errors.Is(err, &dtaccess.DbNotFound{}) {
+			//maybe log it
+			return nil, errors.New("resource not found")
+		}
+
+		return nil, err
+	}
+	return resourceDataToResourceInfo(rdata)
 }
 
 func GetResourcesToLoad() ([]ResourceInfo, error) {
@@ -226,4 +229,93 @@ func GetResourcesToLoad() ([]ResourceInfo, error) {
 	}
 
 	return resourcesSlice, nil
+}
+
+func GetResourceInfoByFileName(fileName string) (*ResourceInfo, error) {
+	rdata, err := dtaccess.GetResourceByFileName(fileName)
+	if err != nil {
+		if errors.Is(err, &dtaccess.DbNotFound{}) {
+			//maybe log it
+			return nil, nil
+		}
+
+		return nil, err
+	}
+	return resourceDataToResourceInfo(rdata)
+}
+
+func CreateMovie(movie *Movie) (*Movie, error) {
+	mData := dtaccess.MovieData{
+		Resource_id: movie.ResourceId,
+		File_name:   movie.FileName,
+		Title:       movie.Title,
+		Year:        movie.Year,
+		Rated:       movie.Rated,
+		Released:    movie.Released,
+		Runtime:     movie.Runtime,
+		Genre:       movie.Genre,
+		Director:    movie.Director,
+		Writer:      movie.Writer,
+		Actors:      movie.Actors,
+		Plot:        movie.Plot,
+		Language:    movie.Language,
+		Country:     movie.Country,
+		Awards:      movie.Awards,
+		Poster:      movie.Poster,
+		Metascore:   movie.Metascore,
+		Imdb_rating: movie.ImdbRating,
+		Imdb_votes:  movie.ImdbVotes,
+		Imdb_id:     movie.ImdbID,
+		Type:        movie.Type,
+		DVD:         movie.DVD,
+		Production:  movie.Production,
+		Website:     movie.Website,
+	}
+
+	err := dtaccess.CreateMovie(&mData)
+	if err != nil {
+		return nil, err
+	}
+
+	movie.id = mData.Id
+
+	return movie, nil
+}
+
+func GetMovieByFileName(fileName string) (*Movie, error) {
+	mData, err := dtaccess.GetMovieByFileName(fileName)
+	if err != nil {
+		if errors.Is(err, &dtaccess.DbNotFound{}) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &Movie{
+		id:         mData.Id,
+		ResourceId: mData.Resource_id,
+		FileName:   mData.File_name,
+		Title:      mData.Title,
+		Year:       mData.Year,
+		Rated:      mData.Rated,
+		Released:   mData.Released,
+		Runtime:    mData.Runtime,
+		Genre:      mData.Genre,
+		Director:   mData.Director,
+		Writer:     mData.Writer,
+		Actors:     mData.Actors,
+		Plot:       mData.Plot,
+		Language:   mData.Language,
+		Country:    mData.Country,
+		Awards:     mData.Awards,
+		Poster:     mData.Poster,
+		Metascore:  mData.Metascore,
+		ImdbRating: mData.Imdb_rating,
+		ImdbVotes:  mData.Imdb_votes,
+		ImdbID:     mData.Imdb_id,
+		Type:       mData.Type,
+		DVD:        mData.DVD,
+		Production: mData.Production,
+		Website:    mData.Website,
+	}, nil
 }

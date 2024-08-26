@@ -72,6 +72,65 @@ func GetResourceById(resource_id string) (*ResourceData, error) {
 	return nil, &DbNotFound{}
 }
 
+func GetResourceByFileName(fileName string) (*ResourceData, error) {
+	db, err := getDbConnection()
+	if err != nil {
+		log.Default().Println(err.Error())
+		return nil, &DbConnectionError{}
+	}
+
+	defer db.Close()
+
+	stmt, err := db.Prepare(`
+		SELECT  
+			id,
+			resource_id,
+			resource_path,
+			manifest_file_name,
+			raw_file_path,
+			raw_file_name,
+			COALESCE(loaded_date, ''),
+			COALESCE(created_date, ''),
+			resource_status
+		FROM resources WHERE raw_file_name=?`)
+	if err != nil {
+		log.Default().Println(err.Error())
+		return nil, &DbError{}
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(fileName)
+	if err != nil {
+		log.Default().Println(err.Error())
+		return nil, &DbError{}
+	}
+
+	defer rows.Close()
+	if rows.Next() {
+		data := ResourceData{}
+		err := rows.Scan(
+			&data.Id,
+			&data.Resource_id,
+			&data.Resource_path,
+			&data.Manifest_file_name,
+			&data.Raw_file_path,
+			&data.Raw_file_name,
+			&data.Loaded_date,
+			&data.Created_date,
+			&data.Resource_status,
+		)
+
+		if err != nil {
+			log.Default().Println(err.Error())
+			return nil, &DbError{}
+		}
+
+		return &data, nil
+	}
+
+	return nil, &DbNotFound{}
+}
+
 func UpdateResource(rdata *ResourceData) error {
 	db, err := getDbConnection()
 	if err != nil {

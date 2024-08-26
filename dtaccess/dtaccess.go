@@ -43,21 +43,52 @@ func loadScripts() {
 	);`
 
 	scriptsMaps["2_create_table_app_configurations"] = `CREATE TABLE IF NOT EXISTS app_configurations (
-		config_name varchar(256) NOT NULL UNIQUE,
+		config_name varchar(255) NOT NULL UNIQUE,
 		data_type varchar(64) NOT NULL,
 		config_value varchar(4096) NOT NULL,
 		created_date INTEGER NOT NULL,
 		updated_date INTEGER NOT NULL
 	);`
 
-	scriptsMaps["3_insert_appconfig_default_ingestfolder"] = `
-		INSERT OR IGNORE INTO app_configurations (config_name, data_type, config_value, created_date, updated_date)
-		VALUES ('ROOT_INGESTS_FOLDER', 'STRING', './resources/raw/', datetime(), datetime())
-	`
+	scriptsMaps["3_create_table_movies"] = `CREATE TABLE IF NOT EXISTS movies (
+		id integer PRIMARY KEY,
+		resource_id varchar(26) NOT NULL UNIQUE,
+		file_name varchar(255),
+		title VARCHAR(255),
+		year VARCHAR(4),
+		rated VARCHAR(5),
+		released VARCHAR(15),
+		runtime VARCHAR(15),
+		genre VARCHAR(255),
+		director VARCHAR(128),
+		writer VARCHAR(255),
+		actors VARCHAR(255),
+		plot VARCHAR(512),
+		language VARCHAR(128),
+		country VARCHAR(128),
+		awards VARCHAR(128),
+		poster VARCHAR(255),
+		metascore VARCHAR(10),
+		imdb_rating VARCHAR(10),
+		imdb_votes VARCHAR(20),
+		imdb_id VARCHAR(20),
+		type VARCHAR(64),
+		dvd VARCHAR(64),
+		box_office VARCHAR(32),
+		production VARCHAR(128),
+		website VARCHAR(255),
+		loaded_metadata INTEGER NOT NULL
+	);`
+
 	scriptsMaps["4_insert_appconfig_default_pkgs_folder"] = `
 		INSERT OR IGNORE INTO app_configurations (config_name, data_type, config_value, created_date, updated_date)
 		VALUES ('ROOT_PKGS_FOLDER', 'STRING', './resources/hls/', datetime(), datetime())
 	`
+
+	// scriptsMaps["5_insert_appconfig_default_ingestfolder"] = `
+	// 	INSERT OR IGNORE INTO app_configurations (config_name, data_type, config_value, created_date, updated_date)
+	// 	VALUES ('ROOT_INGESTS_FOLDER', 'STRING', './resources/raw/', datetime(), datetime())
+	// `
 }
 
 func executeScripts(db *sql.DB) {
